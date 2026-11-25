@@ -1,8 +1,6 @@
 # Project: img-proof
 
-Automated cloud image testing framework and command-line utility for public
-clouds and remote systems. Tested in deep space from the Twelve Colonies to
-the outer rim.
+Automated cloud image testing framework and command-line utility.
 
 ## Conventions
 
@@ -15,7 +13,7 @@ the outer rim.
 
 ## Purposes
 
-1. Automate cloud image validation across multiple cloud providers (AWS EC2, Microsoft Azure, Google Compute Engine, Alibaba Cloud) and direct SSH hosts.
+1. Automate cloud image validation across multiple cloud providers (AWS EC2, Microsoft Azure, Google Compute Engine) and direct SSH hosts.
 2. Support distribution-agnostic synchronization points including soft reboot, hard reboot, package updates, and repository refreshes.
 3. Verify instance lifecycle stability, host key persistence, and guest configuration across reboots.
 4. Capture execution logs, structured JSON results, and diagnostic VM system metrics.

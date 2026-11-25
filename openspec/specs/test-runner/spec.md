@@ -18,7 +18,7 @@ including environment setup, test iteration, diagnostic capture, and results per
 
 #### Scenario: Results directory creation
 - **WHEN** a test run begins
-- **THEN** a unique directory structured by provider, image, and instance (or IP) is created under `results_dir` containing `<timestamp>.log` and `<timestamp>.results` files
+- **THEN** a unique directory is created under `results_dir` — `<provider>/<image_id>/<instance_id>` when testing an existing instance, or `<provider>/<instance_ip>` when a new instance was launched — containing `<timestamp>.log` and `<timestamp>.results` files
 
 #### Scenario: Initial SSH connection failure
 - **WHEN** the runner cannot establish an SSH connection to the launched instance within the timeout
@@ -88,16 +88,12 @@ configuration, retrying failed tests to accommodate transient network failures.
 - **THEN** a temporary SSH configuration file is created with the private key and SSH user and passed to Pytest via `--ssh-config`
 
 #### Scenario: Test retry on transient failure
-- **WHEN** a Pytest test run exits with an error code other than 0 or 5
+- **WHEN** a Pytest test run exits with any non-zero exit code
 - **THEN** the runner re-runs the test up to `retry_count` times before recording the final outcome
 
 #### Scenario: Pytest execution error handling
 - **WHEN** Pytest exits with status code 2, 3, or 4
 - **THEN** a synthetic failed test item named `pytest_error` is recorded in the results summary
-
-#### Scenario: Beta product test skipping
-- **WHEN** the `beta` flag is enabled
-- **THEN** Pytest is invoked with `-m "not skipinbeta"`, and an exit code of 5 (no tests collected) is recorded as successful
 
 ### Requirement: Early Exit on Failure
 The test runner SHALL terminate further test execution immediately upon the first failure
@@ -112,7 +108,7 @@ The test runner SHALL gather guest performance and boot diagnostics when request
 
 #### Scenario: Collect VM diagnostics on reachable instance
 - **WHEN** `collect_vm_info` is True and the instance remains reachable via SSH
-- **THEN** the runner executes distro diagnostic commands (`systemd-analyze --no-pager`, `systemd-analyze blame --no-pager`, and `sudo journalctl -b --no-pager`) and appends the output to the execution log
+- **THEN** the runner executes distro diagnostic commands (`systemd-analyze`, `systemd-analyze blame`, and `sudo journalctl -b`) and appends the output to the execution log
 
 ### Requirement: Structured Result Persistence
 The test runner SHALL record all test outcomes, timings, and metadata into a persistent

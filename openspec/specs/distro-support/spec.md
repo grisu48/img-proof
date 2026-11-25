@@ -14,15 +14,15 @@ standard command execution wrappers.
 
 #### Scenario: Detect systemd init
 - **WHEN** the distro module inspects PID 1 on the guest via `ps -p 1 -o comm=`
-- **THEN** it identifies whether the system runs `systemd` or a legacy init system, retrying up to 3 times on transient connection errors
+- **THEN** it identifies whether the system runs `systemd` or a legacy init system and caches the result so later calls skip re-detection
 
 #### Scenario: Init detection failure
-- **WHEN** PID 1 command inspection fails across all retries
+- **WHEN** PID 1 command inspection fails
 - **THEN** an `IpaDistroException` is raised describing the connection error
 
 ### Requirement: SUSE Distribution Family Support
-The SUSE distribution classes (`SLES`, `SLE_Micro`, and `openSUSE_Leap`) SHALL supply
-Zypper package management and service control commands.
+The SUSE distribution classes (`SLES`, and `openSUSE_Leap` which extends `SLES`) SHALL
+supply Zypper package management and service control commands.
 
 #### Scenario: Zypper package installation command
 - **WHEN** package installation is requested on a SUSE system
@@ -68,21 +68,21 @@ DNF package management and service control commands.
 - **WHEN** stopping the SSH service on a Red Hat system running legacy init
 - **THEN** the module returns `service sshd stop`
 
-### Requirement: Bounded Execution Remote Reboot
-The distribution module SHALL invoke reboots via a backgrounded subshell and enforce a
-bounded execution join timeout to prevent SSH deadlocks.
+### Requirement: Backgrounded Remote Reboot
+The distribution module SHALL invoke reboots via a backgrounded subshell over an open SSH
+session channel so the reboot survives the closing SSH connection.
 
 #### Scenario: Clean reboot execution
 - **WHEN** `reboot()` is called on an instance
-- **THEN** a background command `sudo sh -c '(sleep 1 && <stop_ssh> && <reboot> &)' && exit` is dispatched in an open SSH session channel
+- **THEN** a background command `sudo sh -c '(sleep 1 && <stop_ssh> && <reboot> &)' && exit` is dispatched in an open SSH session channel, followed by a 2-second pause and transport close to let the reboot detach cleanly
 
-#### Scenario: SSH channel deadlock prevention
-- **WHEN** an instance reboot immediately terminates the underlying SSH socket before the command channel cleanly exits
-- **THEN** the execution thread is bounded by a 30-second join timeout, after which the transport socket is force-closed to avoid hanging the process
+#### Scenario: Reboot command failure
+- **WHEN** opening the channel or dispatching the reboot command raises an error
+- **THEN** an `IpaDistroException` is raised and the SSH client cache is left untouched
 
 #### Scenario: Cache invalidation on reboot
-- **WHEN** a reboot command completes or times out
-- **THEN** the SSH client cache is cleared to prevent reuse of dead connections
+- **WHEN** a reboot command dispatches successfully
+- **THEN** the SSH client cache is cleared to prevent reuse of the connection that is about to be rebooted
 
 ### Requirement: Guest Diagnostic Collection
 The distribution module SHALL extract system performance and journal diagnostics from
@@ -90,4 +90,4 @@ systemd-based distributions.
 
 #### Scenario: Collect systemd metrics
 - **WHEN** VM diagnostics are collected on a systemd host
-- **THEN** the module executes and aggregates output from `systemd-analyze --no-pager`, `systemd-analyze blame --no-pager`, and `sudo journalctl -b --no-pager`
+- **THEN** the module executes and aggregates output from `systemd-analyze`, `systemd-analyze blame`, and `sudo journalctl -b`

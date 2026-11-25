@@ -2,9 +2,9 @@
 
 ## Purpose
 Specifies the cloud platform backends and lifecycle integrations for AWS EC2, Microsoft
-Azure, Google Compute Engine, Alibaba Cloud, and direct SSH instances. Ensures img-proof
-can commandeer infrastructure across any sector of the galaxy, from the Core Worlds to
-Tatooine.
+Azure, Google Compute Engine, Alibaba Cloud, Oracle Cloud Infrastructure, and direct SSH
+instances. Ensures img-proof can commandeer infrastructure across any sector of the
+galaxy, from the Core Worlds to Tatooine.
 
 ## Requirements
 
@@ -17,52 +17,44 @@ framework implementations.
 - **THEN** invocation of that method raises `NotImplementedError`
 
 #### Scenario: User-data script generation
-- **WHEN** user-data is requested for cloud-init instance provisioning
-- **THEN** the base class produces a `#cloud-config` script that disables root login and appends the user's public SSH key to the target user's authorized_keys file
+- **WHEN** user-data is requested for a newly launched instance
+- **THEN** the base class produces a bash script (`#!/bin/bash`) that appends the user's public SSH key to the target user's `authorized_keys` file
 
 ### Requirement: AWS EC2 Provider
-The EC2 cloud framework SHALL manage EC2 instances, authentication credentials, volume
-configurations, and serial console logs via Boto3.
+The EC2 cloud framework SHALL manage EC2 instances and serial console logs via Boto3,
+resolving authentication credentials from CLI arguments or an ec2utils-style config file.
 
-#### Scenario: Authentication via AWS profile
-- **WHEN** the `profile` parameter is provided for EC2
-- **THEN** a Boto3 session is initialized using that profile name and region, taking precedence over individual access keys
+#### Scenario: Authentication via account config file
+- **WHEN** an `account` name is provided for EC2 without explicit access keys
+- **THEN** the provider reads the `region-<region>` and `account-<account>` sections of the EC2 config file (default `~/.ec2utils.conf`, overridable via `--cloud-config`) to resolve the access key ID and secret access key
 
-#### Scenario: Missing AWS profile error
-- **WHEN** an invalid or nonexistent AWS profile name is specified
-- **THEN** an `EC2CloudException` is raised indicating the profile was not found
+#### Scenario: Missing region error
+- **WHEN** no region is configured for EC2
+- **THEN** an `EC2CloudException` is raised indicating a region is required to connect to EC2
 
-#### Scenario: Instance launch with EBS configuration
+#### Scenario: Instance launch configuration
 - **WHEN** launching a new EC2 instance
-- **THEN** the provider configures instance type, image ID, root EBS volume size, name tag, subnet, security groups, and CPU options (including AMD SEV-SNP)
+- **THEN** the provider configures instance type, image ID, and a name tag, and optionally sets availability zone placement, SSH key name or generated user-data, subnet ID, security group ID, and additional info
 
 #### Scenario: Serial console log retrieval
 - **WHEN** console output is requested from an EC2 instance
 - **THEN** the provider polls `console_output()` and returns the text output
 
 ### Requirement: Microsoft Azure Provider
-The Azure cloud framework SHALL manage Azure Virtual Machines, network security groups,
-virtual networks, and storage profiles using the Azure SDK and credential wrapping.
+The Azure cloud framework SHALL manage Azure Virtual Machines, virtual networks, and
+storage profiles using the Azure SDK.
 
 #### Scenario: Authenticate using service account file
 - **WHEN** initializing the Azure provider with a service account file
-- **THEN** tenant ID, client ID, client secret, and subscription ID are loaded and adapted via `CredentialWrapper` to provide bearer tokens for management clients
+- **THEN** `get_client_from_auth_file()` reads the file to construct authenticated Compute, Network, and Resource management clients
 
 #### Scenario: Provision isolated resource group and networking
 - **WHEN** launching a new Azure instance without an existing subnet
-- **THEN** a dedicated resource group is created containing a virtual network, subnet, static standard public IP, network security group permitting port 22, and a network interface with optional accelerated networking
+- **THEN** a dedicated resource group is created containing a virtual network, subnet, a dynamic public IP address, and a network interface with optional accelerated networking
 
 #### Scenario: Storage profile for marketplace URN image
 - **WHEN** an image ID is formatted as `Publisher:Offer:Sku:Version`
-- **THEN** the VM configuration sets the image reference to those URN components and configures the OS disk size
-
-#### Scenario: Marketplace plan information for licensed images
-- **WHEN** a marketplace URN image is launched with plan information enabled
-- **THEN** the VM configuration includes a plan block with the publisher, product, and name derived from the image URN, as required to deploy certain licensed Azure marketplace images
-
-#### Scenario: Storage profile for Shared Image Gallery
-- **WHEN** `gallery_name`, `gallery_resource_group`, and `image_version` are provided
-- **THEN** the VM configuration binds the image reference to the resolved gallery image version resource ID
+- **THEN** the VM configuration sets the image reference to those URN components
 
 #### Scenario: Teardown resource group on instance termination
 - **WHEN** terminating an Azure instance
@@ -70,15 +62,16 @@ virtual networks, and storage profiles using the Azure SDK and credential wrappi
 
 ### Requirement: Google Compute Engine Provider
 The GCE cloud framework SHALL manage Google Cloud instances, zone validation, network
-interfaces, confidential computing, and serial output via the compute_v1 SDK.
+interfaces, confidential computing, and serial output via the Google API Python Client
+(`googleapiclient.discovery`) compute v1 REST interface.
 
 #### Scenario: Zone validation
 - **WHEN** the GCE provider initializes with a specified region
 - **THEN** the provider verifies with the GCE API that the region represents a valid compute zone and raises `GCECloudException` if invalid
 
 #### Scenario: Launch instance with confidential computing
-- **WHEN** launching an instance with SEV, SEV-SNP, or TDX enabled
-- **THEN** the instance configuration includes confidential compute flags, terminates on host maintenance, and configures matching guest OS features
+- **WHEN** launching an instance with the `sev_capable` option enabled
+- **THEN** the instance configuration sets `enableConfidentialCompute`, terminates on host maintenance, and adds the `SEV_CAPABLE` guest OS feature
 
 #### Scenario: Launch instance with shielded VM configuration
 - **WHEN** `enable_uefi` is enabled
@@ -116,15 +109,14 @@ hosts without invoking cloud management APIs.
 - **WHEN** any lifecycle mutation method (`_launch_instance`, `_start_instance`, `_stop_instance`, `_terminate_instance`) is called on `SSHCloud`
 - **THEN** an `SSHCloudException` is raised stating the SSH backend has no access to cloud APIs
 
-### Requirement: Oracle Cloud Infrastructure Not a Test Target
-Oracle Cloud Infrastructure (OCI) SHALL NOT be a test target for the time being. The OCI
-cloud framework is retired and no OCI provider support is provided; the exclusion holds
-until OCI support is explicitly reinstated.
+#### Scenario: Launch instance with generated networking
+- **WHEN** launching a new OCI instance without an existing subnet
+- **THEN** the provider creates a VCN, subnet, and internet gateway named after the generated instance display name, then launches the instance into that subnet
 
-#### Scenario: OCI absent from supported cloud frameworks
-- **WHEN** the set of supported cloud frameworks is enumerated (`SUPPORTED_CLOUDS`)
-- **THEN** Oracle Cloud Infrastructure (`oci`) is not among the supported values
+#### Scenario: Teardown generated networking on termination
+- **WHEN** terminating an OCI instance whose display name carries the `oci-ipa-test` prefix generated by img-proof
+- **THEN** the provider terminates the instance and deletes the associated subnet, route rules, internet gateway, and VCN
 
-#### Scenario: OCI requested as test target
-- **WHEN** `oci` is requested as the cloud framework for a test run
-- **THEN** the request is rejected as an invalid cloud framework choice because no OCI provider exists
+#### Scenario: Console history retrieval
+- **WHEN** console output is requested from an OCI instance
+- **THEN** the provider captures console history via `capture_console_history_and_wait_for_state()` and decodes the retrieved content

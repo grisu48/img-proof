@@ -52,22 +52,6 @@ image testing against the specified platform.
 - **WHEN** an unhandled exception occurs and `--debug` is not active
 - **THEN** the exception type and message are formatted in red text and the process exits with status 1
 
-### Requirement: Deprecated CLI Option Warnings
-The `img-proof test` command SHALL emit deprecation warnings when legacy options
-are supplied on the command line.
-
-#### Scenario: Legacy CPU options passed
-- **WHEN** the `--cpu-options` option is provided
-- **THEN** the system prints a deprecation warning recommending `--instance-option AmdSevSnp=enabled`
-
-#### Scenario: Legacy SEV capable flag passed
-- **WHEN** the `--sev-capable` flag is provided
-- **THEN** the system prints a deprecation warning recommending `--instance-option SEV_CAPABLE`
-
-#### Scenario: Legacy GVNIC flag passed
-- **WHEN** the `--use-gvnic` flag is provided
-- **THEN** the system prints a deprecation warning recommending `--instance-option GVNIC`
-
 ### Requirement: Test Discovery and Listing
 The `img-proof list` command SHALL list available test files and YAML suites, and
 optionally enumerate granular test cases.

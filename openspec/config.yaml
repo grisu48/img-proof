@@ -1,0 +1,16 @@
+schema: spec-driven
+
+context: |
+  img-proof (IPA) is a Python command-line utility and framework for automated
+  validation and testing of cloud images across public cloud providers (Amazon
+  EC2, Microsoft Azure, Google Compute Engine, Alibaba Cloud) and direct SSH
+  targets. It provisions or attaches to instances, executes Pytest and
+  Testinfra test suites, handles synchronization points (reboots, updates,
+  repo refreshes), and records test outputs and diagnostic artifacts.
+
+rules:
+  specs:
+    - Requirements must use RFC 2119 keywords (SHALL, MUST, SHOULD, MAY).
+    - Every requirement must have at least one scenario with WHEN and THEN steps.
+    - Scenarios must use exactly four hashes (#### Scenario:).
+    - Main specs must not contain delta operation headers.

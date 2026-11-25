@@ -115,3 +115,16 @@ hosts without invoking cloud management APIs.
 #### Scenario: Reject instance launch or termination requests
 - **WHEN** any lifecycle mutation method (`_launch_instance`, `_start_instance`, `_stop_instance`, `_terminate_instance`) is called on `SSHCloud`
 - **THEN** an `SSHCloudException` is raised stating the SSH backend has no access to cloud APIs
+
+### Requirement: Oracle Cloud Infrastructure Not a Test Target
+Oracle Cloud Infrastructure (OCI) SHALL NOT be a test target for the time being. The OCI
+cloud framework is retired and no OCI provider support is provided; the exclusion holds
+until OCI support is explicitly reinstated.
+
+#### Scenario: OCI absent from supported cloud frameworks
+- **WHEN** the set of supported cloud frameworks is enumerated (`SUPPORTED_CLOUDS`)
+- **THEN** Oracle Cloud Infrastructure (`oci`) is not among the supported values
+
+#### Scenario: OCI requested as test target
+- **WHEN** `oci` is requested as the cloud framework for a test run
+- **THEN** the request is rejected as an invalid cloud framework choice because no OCI provider exists
